@@ -3,13 +3,18 @@
 import { useCallback, useEffect, useState } from "react";
 import { CallCard } from "@/components/CallCard";
 import { isTerminalStatus, type SerializedCall } from "@/lib/types";
+import { QuickCall } from "./QuickCall";
 
 export function CallsView({
   initialCalls,
   initialFollowUpOnly,
+  scripts,
+  contacts,
 }: {
   initialCalls: SerializedCall[];
   initialFollowUpOnly: boolean;
+  scripts: { id: string; name: string }[];
+  contacts: { id: string; name: string; phone: string }[];
 }) {
   const [calls, setCalls] = useState<SerializedCall[]>(initialCalls);
   const [followUpOnly, setFollowUpOnly] = useState(initialFollowUpOnly);
@@ -44,6 +49,12 @@ export function CallsView({
 
   return (
     <>
+      <QuickCall
+        scripts={scripts}
+        contacts={contacts}
+        onPlaced={() => load(followUpOnly)}
+      />
+
       <div className="mt-4 flex items-center gap-2">
         <div className="flex rounded-lg border border-[var(--border)] p-1">
           <button
@@ -81,7 +92,7 @@ export function CallsView({
             {c.campaign_name && (
               <div className="mb-1 text-xs text-[var(--muted)]">{c.campaign_name}</div>
             )}
-            <CallCard call={c} />
+            <CallCard call={c} onChanged={() => load(followUpOnly)} />
           </div>
         ))}
       </div>

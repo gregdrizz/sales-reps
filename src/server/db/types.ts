@@ -86,6 +86,12 @@ export interface CallTable {
   follow_up_score: number | null;
   recording_available: ColumnType<boolean, boolean | undefined, boolean>;
   error: string | null;
+  instruction_override: string | null;
+  language: string | null;
+  voice_gender: VoiceGender | null;
+  attempt: ColumnType<number, number | undefined, number>;
+  max_attempts: ColumnType<number, number | undefined, number>;
+  parent_call_id: string | null;
   created_at: DefaultTimestamp;
   updated_at: DefaultTimestamp;
   ended_at: NullableTimestamp;

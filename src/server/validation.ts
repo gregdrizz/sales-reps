@@ -34,6 +34,22 @@ export const campaignCreateSchema = z.object({
   contactIds: z.array(z.string().uuid()).min(1).max(1000),
 });
 
+export const adhocCallSchema = z
+  .object({
+    toNumber: e164.optional(),
+    contactId: z.string().uuid().optional(),
+    scriptId: z.string().uuid().optional(),
+    instruction: z.string().trim().min(1).max(8000).optional(),
+    language: z.string().trim().max(20).optional().nullable(),
+    voiceGender: voiceGenderSchema.optional(),
+  })
+  .refine((d) => d.toNumber || d.contactId, {
+    message: "Provide a phone number or a contact",
+  })
+  .refine((d) => d.scriptId || d.instruction, {
+    message: "Provide a script or an instruction",
+  });
+
 export type ScriptCreate = z.infer<typeof scriptCreateSchema>;
 export type ContactCreate = z.infer<typeof contactCreateSchema>;
 export type CampaignCreate = z.infer<typeof campaignCreateSchema>;

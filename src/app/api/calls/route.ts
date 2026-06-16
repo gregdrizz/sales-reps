@@ -1,5 +1,7 @@
 import { db } from "@/server/db/client";
-import { authUser, json } from "@/server/http";
+import { createAdHocCall } from "@/server/calls/orchestrator";
+import { authUser, badRequest, json, serverError } from "@/server/http";
+import { adhocCallSchema } from "@/server/validation";
 
 export const runtime = "nodejs";
 
@@ -48,4 +50,48 @@ export async function GET(req: Request) {
 
   const calls = await q.execute();
   return json({ calls });
+}
+
+/** Place a single ad-hoc ("quick") call. */
+export async function POST(req: Request) {
+  const auth = await authUser();
+  if ("response" in auth) return auth.response;
+
+  const parsed = adhocCallSchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return badRequest("Invalid call", parsed.error.flatten());
+
+  // Resolve the destination number from a contact if one was given.
+  let toNumber = parsed.data.toNumber ?? null;
+  let contactId = parsed.data.contactId ?? null;
+  if (contactId) {
+    const contact = await db
+      .selectFrom("contacts")
+      .select(["id", "phone"])
+      .where("id", "=", contactId)
+      .where("user_id", "=", auth.userId)
+      .executeTakeFirst();
+    if (!contact) return badRequest("Contact not found");
+    toNumber = contact.phone;
+  }
+  if (!toNumber) return badRequest("No destination number");
+
+  try {
+    const call = await createAdHocCall({
+      userId: auth.userId,
+      toNumber,
+      contactId,
+      scriptId: parsed.data.scriptId ?? null,
+      instruction: parsed.data.instruction ?? null,
+      language: parsed.data.language ?? null,
+      voiceGender: parsed.data.voiceGender ?? null,
+    });
+    return json({ call }, { status: 201 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to place call";
+    if (message === "Script not found" || message === "An instruction or script is required") {
+      return badRequest(message);
+    }
+    console.error("[calls] adhoc create failed:", err);
+    return serverError();
+  }
 }

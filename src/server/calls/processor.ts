@@ -20,20 +20,54 @@ interface CallContext {
 }
 
 async function loadCallContext(callId: string): Promise<CallContext | null> {
-  const row = await db
+  const call = await db
     .selectFrom("calls")
-    .innerJoin("campaigns", "campaigns.id", "calls.campaign_id")
-    .innerJoin("scripts", "scripts.id", "campaigns.script_id")
     .select([
-      "calls.id as id",
-      "calls.to_number as to_number",
-      "scripts.instruction as instruction",
-      "scripts.language as language",
-      "scripts.voice_gender as voice_gender",
+      "id",
+      "to_number",
+      "campaign_id",
+      "instruction_override",
+      "language",
+      "voice_gender",
     ])
-    .where("calls.id", "=", callId)
+    .where("id", "=", callId)
     .executeTakeFirst();
-  return (row as CallContext | undefined) ?? null;
+  if (!call) return null;
+
+  // Ad-hoc / quick call: instruction travels on the call row itself.
+  if (call.instruction_override) {
+    return {
+      id: call.id,
+      to_number: call.to_number,
+      instruction: call.instruction_override,
+      language: call.language,
+      voice_gender: call.voice_gender ?? "female",
+    };
+  }
+
+  // Campaign call: resolve the instruction from the campaign's script.
+  if (call.campaign_id) {
+    const row = await db
+      .selectFrom("campaigns")
+      .innerJoin("scripts", "scripts.id", "campaigns.script_id")
+      .select([
+        "scripts.instruction as instruction",
+        "scripts.language as language",
+        "scripts.voice_gender as voice_gender",
+      ])
+      .where("campaigns.id", "=", call.campaign_id)
+      .executeTakeFirst();
+    if (!row) return null;
+    return {
+      id: call.id,
+      to_number: call.to_number,
+      instruction: row.instruction,
+      language: row.language,
+      voice_gender: row.voice_gender,
+    };
+  }
+
+  return null;
 }
 
 async function setStatus(callId: string, status: CallStatus): Promise<void> {

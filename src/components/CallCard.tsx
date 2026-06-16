@@ -5,9 +5,23 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { formatDuration } from "@/lib/format";
 import type { SerializedCall } from "@/lib/types";
 
-export function CallCard({ call }: { call: SerializedCall }) {
+export function CallCard({
+  call,
+  onChanged,
+}: {
+  call: SerializedCall;
+  onChanged?: () => void;
+}) {
   const [open, setOpen] = useState(false);
+  const [redialing, setRedialing] = useState(false);
   const hasTranscript = Boolean(call.transcript?.trim());
+
+  async function callAgain() {
+    setRedialing(true);
+    await fetch(`/api/calls/${call.id}/redial`, { method: "POST" });
+    setRedialing(false);
+    onChanged?.();
+  }
 
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
@@ -28,6 +42,15 @@ export function CallCard({ call }: { call: SerializedCall }) {
             {formatDuration(call.duration_seconds)}
           </span>
           <StatusBadge status={call.status} />
+          {onChanged && (
+            <button
+              onClick={callAgain}
+              disabled={redialing}
+              className="rounded-lg border border-[var(--border)] px-2 py-0.5 text-xs hover:bg-[var(--surface-2)] disabled:opacity-60"
+            >
+              {redialing ? "…" : "Call again"}
+            </button>
+          )}
         </div>
       </div>
 

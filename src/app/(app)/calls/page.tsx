@@ -1,5 +1,5 @@
 import { requireUser } from "@/server/auth/session";
-import { listCalls } from "@/server/queries";
+import { listCalls, listContacts, listScripts } from "@/server/queries";
 import { CallsView } from "./CallsView";
 import type { SerializedCall } from "@/lib/types";
 
@@ -13,17 +13,23 @@ export default async function CallsPage({
   const user = await requireUser();
   const { followUp } = await searchParams;
   const onlyFollowUp = followUp === "true";
-  const calls = await listCalls(user.id, { followUp: onlyFollowUp });
+  const [calls, scripts, contacts] = await Promise.all([
+    listCalls(user.id, { followUp: onlyFollowUp }),
+    listScripts(user.id),
+    listContacts(user.id),
+  ]);
 
   return (
     <main className="p-8">
       <h1 className="text-2xl font-semibold">Calls</h1>
       <p className="mt-1 text-sm text-[var(--muted)]">
-        Every call placed, with transcript and follow-up flag.
+        Place a quick call, or browse every call with its transcript and follow-up flag.
       </p>
       <CallsView
         initialCalls={calls.map(serialize)}
         initialFollowUpOnly={onlyFollowUp}
+        scripts={scripts.map((s) => ({ id: s.id, name: s.name }))}
+        contacts={contacts.map((c) => ({ id: c.id, name: c.name, phone: c.phone }))}
       />
     </main>
   );
