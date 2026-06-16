@@ -39,6 +39,8 @@ export const campaignCreateSchema = z.object({
   scheduledAt: z.string().datetime().optional().nullable(),
   workStartHour: hour.optional().nullable(),
   workEndHour: hour.optional().nullable(),
+  smsOnFollowup: z.boolean().optional(),
+  smsTemplate: z.string().trim().max(1600).optional().nullable(),
 });
 
 export const adhocCallSchema = z
@@ -56,6 +58,31 @@ export const adhocCallSchema = z
   .refine((d) => d.scriptId || d.instruction, {
     message: "Provide a script or an instruction",
   });
+
+export const smsSendSchema = z
+  .object({
+    toNumber: e164.optional(),
+    contactId: z.string().uuid().optional(),
+    callId: z.string().uuid().optional(),
+    body: z.string().trim().min(1).max(1600),
+  })
+  .refine((d) => d.toNumber || d.contactId, {
+    message: "Provide a phone number or a contact",
+  });
+
+export const taskCreateSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  notes: z.string().trim().max(2000).optional().nullable(),
+  dueAt: z.string().datetime().optional().nullable(),
+  contactId: z.string().uuid().optional().nullable(),
+  callId: z.string().uuid().optional().nullable(),
+});
+
+export const taskUpdateSchema = z.object({
+  status: z.enum(["open", "done"]).optional(),
+  notes: z.string().trim().max(2000).optional().nullable(),
+  dueAt: z.string().datetime().optional().nullable(),
+});
 
 export type ScriptCreate = z.infer<typeof scriptCreateSchema>;
 export type ContactCreate = z.infer<typeof contactCreateSchema>;

@@ -1,6 +1,7 @@
 import { db } from "@/server/db/client";
 import { getDialClient } from "@/server/dial/client";
 import { getFollowUpAnalyzer } from "@/server/followup";
+import { handleFollowUp } from "./aftercall";
 import { isTerminal, mapDialStatus } from "./status";
 
 /**
@@ -35,6 +36,7 @@ export async function reconcileCallRow(
       })
       .where("id", "=", callId)
       .execute();
+    await handleFollowUp(callId);
     return true;
   }
 

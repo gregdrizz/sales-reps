@@ -53,6 +53,8 @@ export async function POST(req: Request) {
       scheduledAt: parsed.data.scheduledAt ? new Date(parsed.data.scheduledAt) : null,
       workStartHour: parsed.data.workStartHour ?? null,
       workEndHour: parsed.data.workEndHour ?? null,
+      smsOnFollowup: parsed.data.smsOnFollowup,
+      smsTemplate: parsed.data.smsTemplate ?? null,
     });
     return json({ campaign, callCount }, { status: 201 });
   } catch (err) {

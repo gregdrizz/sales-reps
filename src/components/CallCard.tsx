@@ -23,6 +23,16 @@ export function CallCard({
     onChanged?.();
   }
 
+  async function sendText() {
+    const body = window.prompt(`Text ${call.to_number}:`);
+    if (!body?.trim()) return;
+    await fetch("/api/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ toNumber: call.to_number, body, callId: call.id }),
+    });
+  }
+
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -43,13 +53,21 @@ export function CallCard({
           </span>
           <StatusBadge status={call.status} />
           {onChanged && (
-            <button
-              onClick={callAgain}
-              disabled={redialing}
-              className="rounded-lg border border-[var(--border)] px-2 py-0.5 text-xs hover:bg-[var(--surface-2)] disabled:opacity-60"
-            >
-              {redialing ? "…" : "Call again"}
-            </button>
+            <>
+              <button
+                onClick={callAgain}
+                disabled={redialing}
+                className="rounded-lg border border-[var(--border)] px-2 py-0.5 text-xs hover:bg-[var(--surface-2)] disabled:opacity-60"
+              >
+                {redialing ? "…" : "Call again"}
+              </button>
+              <button
+                onClick={sendText}
+                className="rounded-lg border border-[var(--border)] px-2 py-0.5 text-xs hover:bg-[var(--surface-2)]"
+              >
+                Text
+              </button>
+            </>
           )}
         </div>
       </div>

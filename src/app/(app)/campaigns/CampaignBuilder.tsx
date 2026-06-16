@@ -31,6 +31,8 @@ export function CampaignBuilder({
   const [scheduledAt, setScheduledAt] = useState("");
   const [workStart, setWorkStart] = useState("");
   const [workEnd, setWorkEnd] = useState("");
+  const [smsOnFollowup, setSmsOnFollowup] = useState(false);
+  const [smsTemplate, setSmsTemplate] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,6 +74,8 @@ export function CampaignBuilder({
         scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : null,
         workStartHour: workStart === "" ? null : Number(workStart),
         workEndHour: workEnd === "" ? null : Number(workEnd),
+        smsOnFollowup,
+        smsTemplate: smsTemplate.trim() || null,
       }),
     });
     setBusy(false);
@@ -243,6 +247,24 @@ export function CampaignBuilder({
                   onChange={(e) => setWorkEnd(e.target.value)}
                 />
               </div>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={smsOnFollowup}
+                  onChange={(e) => setSmsOnFollowup(e.target.checked)}
+                />
+                Auto-text contacts flagged for follow-up
+              </label>
+              {smsOnFollowup && (
+                <textarea
+                  className="mt-2 h-20 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 outline-none focus:border-[var(--accent)]"
+                  placeholder="Hi {{name}}, thanks for the chat — I'll follow up shortly!"
+                  value={smsTemplate}
+                  onChange={(e) => setSmsTemplate(e.target.value)}
+                />
+              )}
             </div>
           </div>
         )}

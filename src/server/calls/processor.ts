@@ -2,6 +2,7 @@ import { db } from "@/server/db/client";
 import type { CallStatus } from "@/server/db/types";
 import { DialApiError, getDialClient, isTerminalDialStatus } from "@/server/dial/client";
 import { getFollowUpAnalyzer } from "@/server/followup";
+import { handleFollowUp } from "./aftercall";
 import { enqueueDelayed } from "./queue";
 import { isTerminal, mapDialStatus } from "./status";
 
@@ -204,6 +205,7 @@ export async function processCall(callId: string): Promise<void> {
       .where("id", "=", callId)
       .execute();
 
+    await handleFollowUp(callId);
     await scheduleRetryIfNeeded(callId, finalStatus);
   } catch (err) {
     const message =

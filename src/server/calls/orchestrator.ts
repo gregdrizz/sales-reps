@@ -120,6 +120,8 @@ export interface CreateCampaignInput {
   scheduledAt?: Date | null;
   workStartHour?: number | null;
   workEndHour?: number | null;
+  smsOnFollowup?: boolean;
+  smsTemplate?: string | null;
 }
 
 /**
@@ -163,6 +165,8 @@ export async function createCampaign(
         retry_delay_seconds: retryDelaySeconds,
         work_start_hour: input.workStartHour ?? null,
         work_end_hour: input.workEndHour ?? null,
+        sms_on_followup: input.smsOnFollowup ?? false,
+        sms_template: input.smsTemplate ?? null,
       })
       .returningAll()
       .executeTakeFirstOrThrow();

@@ -24,6 +24,8 @@ export type CallStatus =
 export type CampaignMode = "sequential" | "parallel";
 export type CampaignStatus = "pending" | "running" | "completed" | "failed";
 export type VoiceGender = "female" | "male";
+export type MessageDirection = "outbound" | "inbound";
+export type TaskStatus = "open" | "done";
 
 // ─── better-auth owned tables (camelCase columns, quoted by Kysely) ──────────
 
@@ -73,6 +75,8 @@ export interface CampaignTable {
   retry_delay_seconds: ColumnType<number, number | undefined, number>;
   work_start_hour: number | null;
   work_end_hour: number | null;
+  sms_on_followup: ColumnType<boolean, boolean | undefined, boolean>;
+  sms_template: string | null;
   created_at: DefaultTimestamp;
 }
 
@@ -103,13 +107,45 @@ export interface CallTable {
   ended_at: NullableTimestamp;
 }
 
+export interface MessageTable {
+  id: Generated<string>;
+  user_id: string;
+  contact_id: string | null;
+  call_id: string | null;
+  to_number: string;
+  body: string;
+  direction: ColumnType<MessageDirection, MessageDirection | undefined, MessageDirection>;
+  dial_message_id: string | null;
+  status: ColumnType<string, string | undefined, string>;
+  error: string | null;
+  created_at: DefaultTimestamp;
+}
+
+export interface FollowUpTaskTable {
+  id: Generated<string>;
+  user_id: string;
+  call_id: string | null;
+  contact_id: string | null;
+  title: string;
+  notes: string | null;
+  status: ColumnType<TaskStatus, TaskStatus | undefined, TaskStatus>;
+  due_at: NullableTimestamp;
+  created_at: DefaultTimestamp;
+  completed_at: NullableTimestamp;
+}
+
 export interface Database {
   user: UserTable;
   scripts: ScriptTable;
   contacts: ContactTable;
   campaigns: CampaignTable;
   calls: CallTable;
+  messages: MessageTable;
+  follow_up_tasks: FollowUpTaskTable;
 }
+
+export type Message = Selectable<MessageTable>;
+export type FollowUpTask = Selectable<FollowUpTaskTable>;
 
 // Convenience row types
 export type Script = Selectable<ScriptTable>;

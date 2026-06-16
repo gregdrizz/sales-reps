@@ -120,13 +120,37 @@ export async function listCalls(userId: string, opts: { followUp?: boolean } = {
   return q.execute();
 }
 
+export async function listTasks(userId: string, status?: "open" | "done") {
+  let q = db
+    .selectFrom("follow_up_tasks")
+    .leftJoin("contacts", "contacts.id", "follow_up_tasks.contact_id")
+    .select([
+      "follow_up_tasks.id as id",
+      "follow_up_tasks.title as title",
+      "follow_up_tasks.notes as notes",
+      "follow_up_tasks.status as status",
+      "follow_up_tasks.due_at as due_at",
+      "follow_up_tasks.call_id as call_id",
+      "follow_up_tasks.created_at as created_at",
+      "contacts.name as contact_name",
+      "contacts.phone as contact_phone",
+    ])
+    .where("follow_up_tasks.user_id", "=", userId)
+    .orderBy("follow_up_tasks.status", "asc")
+    .orderBy("follow_up_tasks.created_at", "desc")
+    .limit(500);
+  if (status) q = q.where("follow_up_tasks.status", "=", status);
+  return q.execute();
+}
+
 export async function dashboardStats(userId: string) {
-  const [scripts, contacts, campaigns, calls, followUps] = await Promise.all([
+  const [scripts, contacts, campaigns, calls, followUps, openTasks] = await Promise.all([
     db.selectFrom("scripts").select(({ fn }) => fn.countAll<string>().as("n")).where("user_id", "=", userId).executeTakeFirst(),
     db.selectFrom("contacts").select(({ fn }) => fn.countAll<string>().as("n")).where("user_id", "=", userId).executeTakeFirst(),
     db.selectFrom("campaigns").select(({ fn }) => fn.countAll<string>().as("n")).where("user_id", "=", userId).executeTakeFirst(),
     db.selectFrom("calls").select(({ fn }) => fn.countAll<string>().as("n")).where("user_id", "=", userId).executeTakeFirst(),
     db.selectFrom("calls").select(({ fn }) => fn.countAll<string>().as("n")).where("user_id", "=", userId).where("needs_follow_up", "=", true).executeTakeFirst(),
+    db.selectFrom("follow_up_tasks").select(({ fn }) => fn.countAll<string>().as("n")).where("user_id", "=", userId).where("status", "=", "open").executeTakeFirst(),
   ]);
   return {
     scripts: Number(scripts?.n ?? 0),
@@ -134,5 +158,6 @@ export async function dashboardStats(userId: string) {
     campaigns: Number(campaigns?.n ?? 0),
     calls: Number(calls?.n ?? 0),
     followUps: Number(followUps?.n ?? 0),
+    openTasks: Number(openTasks?.n ?? 0),
   };
 }
