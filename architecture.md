@@ -101,6 +101,15 @@ All application rows are scoped by `user_id` (the signed-in rep).
   (OpenAI-compatible, cheap + fast — the recommended AI option) or Claude. An AI
   analyzer activates only when both selected and its API key is present;
   otherwise the heuristic runs, so the platform always works out of the box.
+- **2026-06-16 — Dial status normalization.** The Dial REST API returns a call's
+  `status` as an object (`{ state, terminationType, label }`) whereas events use
+  a plain string. `DialClient` normalizes it to a string
+  (`terminationType || state || label`) so the status mapper has one shape to
+  handle. Found and fixed during end-to-end verification.
+- **2026-06-16 — Verified end-to-end.** Logged in, created a script + contact,
+  launched a sequential campaign; the worker placed a real call via Dial, polled
+  it to `completed`, stored the transcript, and ran the heuristic follow-up
+  analyzer. UI live-polls campaign/calls while any call is active.
 - **2026-06-16 — Dial integration.** A `DialClient` wraps `POST /api/v1/calls`,
   `GET /api/v1/calls/:id`, and `POST /api/v1/messages`. Calls are placed with the
   call row id as the `Idempotency-Key` so a retried job never double-dials. The

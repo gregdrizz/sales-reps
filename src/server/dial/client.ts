@@ -37,6 +37,21 @@ export function isTerminalDialStatus(status: string | undefined | null): boolean
   return TERMINAL_STATUSES.has(status.toLowerCase());
 }
 
+/**
+ * Coerce Dial's `status` into a string. The REST API returns an object like
+ * `{ state: "Terminated", terminationType: "completed", label: "Completed" }`;
+ * `terminationType` is the precise terminal outcome, `state` covers in-flight
+ * states (Queued/Ringing/In-Progress).
+ */
+export function normalizeStatus(status: unknown): string {
+  if (typeof status === "string") return status;
+  if (status && typeof status === "object") {
+    const o = status as Record<string, unknown>;
+    return String(o.terminationType || o.state || o.label || "");
+  }
+  return "";
+}
+
 /** Thrown for non-2xx responses from the Dial API. */
 export class DialApiError extends Error {
   constructor(
@@ -100,10 +115,15 @@ export class DialClient {
   }
 
   private static unwrapCall(body: unknown): DialCall {
-    if (body && typeof body === "object" && "call" in body) {
-      return (body as { call: DialCall }).call;
-    }
-    return body as DialCall;
+    const raw =
+      body && typeof body === "object" && "call" in body
+        ? (body as { call: unknown }).call
+        : body;
+    const call = (raw ?? {}) as DialCall & { status?: unknown };
+    // The REST API reports `status` as an object ({ state, terminationType,
+    // label }); CLI events report it as a string. Normalize to a string.
+    call.status = normalizeStatus(call.status);
+    return call;
   }
 
   /** POST /api/v1/calls — place an outbound AI voice call. */
