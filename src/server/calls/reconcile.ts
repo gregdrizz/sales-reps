@@ -31,6 +31,9 @@ export async function reconcileCallRow(
         needs_follow_up: verdict.needsFollowUp,
         follow_up_reason: verdict.reason,
         follow_up_score: verdict.score,
+        summary: verdict.summary ?? null,
+        sentiment: verdict.sentiment ?? null,
+        next_action: verdict.nextAction ?? null,
         ended_at: new Date(),
         updated_at: new Date(),
       })

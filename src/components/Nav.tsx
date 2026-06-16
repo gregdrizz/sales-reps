@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/campaigns", label: "Campaigns" },
   { href: "/calls", label: "Calls" },
   { href: "/tasks", label: "Follow-ups" },
+  { href: "/analytics", label: "Analytics" },
 ];
 
 export function Nav({ username }: { username: string }) {

@@ -16,14 +16,15 @@ export class ClaudeAnalyzer implements FollowUpAnalyzer {
   async analyze(input: FollowUpInput): Promise<FollowUpResult> {
     const prompt = [
       "You are a sales-operations assistant. Given the outcome and transcript of",
-      "an outbound sales call, decide whether a human sales rep should follow up.",
+      "an outbound sales call, analyze it for a sales rep.",
       "",
       `Call status: ${input.status}`,
       "Transcript:",
       input.transcript?.trim() || "(no transcript captured)",
       "",
-      'Respond with ONLY a JSON object: {"needsFollowUp": boolean, "reason": string, "score": number between 0 and 1}.',
+      'Respond with ONLY a JSON object: {"needsFollowUp": boolean, "reason": string, "score": number between 0 and 1, "summary": string, "sentiment": "positive"|"neutral"|"negative", "nextAction": string}.',
       "score = how strongly a follow-up is warranted. A clear rejection => needsFollowUp false, score 0.",
+      "summary = one concise sentence. nextAction = a short suggested next step.",
     ].join("\n");
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -63,8 +64,17 @@ export class ClaudeAnalyzer implements FollowUpAnalyzer {
       needsFollowUp: Boolean(parsed.needsFollowUp),
       reason: String(parsed.reason ?? "").slice(0, 500),
       score: clamp01(Number(parsed.score ?? 0)),
+      summary: optStr(parsed.summary),
+      sentiment: optStr(parsed.sentiment),
+      nextAction: optStr(parsed.nextAction),
     };
   }
+}
+
+function optStr(v: unknown): string | null {
+  if (v == null) return null;
+  const s = String(v).trim();
+  return s ? s.slice(0, 800) : null;
 }
 
 function clamp01(n: number): number {
@@ -72,13 +82,11 @@ function clamp01(n: number): number {
   return Math.max(0, Math.min(1, n));
 }
 
-function extractJson(
-  text: string,
-): { needsFollowUp?: unknown; reason?: unknown; score?: unknown } | null {
+function extractJson(text: string): Record<string, unknown> | null {
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) return null;
   try {
-    return JSON.parse(match[0]);
+    return JSON.parse(match[0]) as Record<string, unknown>;
   } catch {
     return null;
   }

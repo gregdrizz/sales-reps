@@ -12,6 +12,12 @@ export interface FollowUpResult {
   reason: string;
   /** Confidence/intensity in [0, 1]. */
   score: number;
+  /** One-line call summary (LLM analyzers only). */
+  summary?: string | null;
+  /** "positive" | "neutral" | "negative" (LLM analyzers only). */
+  sentiment?: string | null;
+  /** Suggested next action (LLM analyzers only). */
+  nextAction?: string | null;
 }
 
 export interface FollowUpAnalyzer {

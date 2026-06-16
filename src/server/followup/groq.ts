@@ -16,11 +16,15 @@ export class GroqAnalyzer implements FollowUpAnalyzer {
 
   async analyze(input: FollowUpInput): Promise<FollowUpResult> {
     const system =
-      "You are a sales-operations assistant. Decide whether a human sales rep " +
-      "should follow up after an outbound sales call. Reply ONLY with a JSON " +
-      'object: {"needsFollowUp": boolean, "reason": string, "score": number}. ' +
+      "You are a sales-operations assistant analyzing an outbound sales call. " +
+      "Reply ONLY with a JSON object: " +
+      '{"needsFollowUp": boolean, "reason": string, "score": number, ' +
+      '"summary": string, "sentiment": "positive"|"neutral"|"negative", ' +
+      '"nextAction": string}. ' +
       "score is 0..1 (how strongly a follow-up is warranted). A clear rejection " +
-      "=> needsFollowUp false, score 0. Transcripts may be in English or Hebrew.";
+      "=> needsFollowUp false, score 0. summary is one concise sentence. " +
+      "nextAction is a short suggested next step for the rep. " +
+      "Transcripts may be in English or Hebrew.";
 
     const user = [
       `Call status: ${input.status}`,
@@ -68,8 +72,17 @@ export class GroqAnalyzer implements FollowUpAnalyzer {
       needsFollowUp: Boolean(parsed.needsFollowUp),
       reason: String(parsed.reason ?? "").slice(0, 500),
       score: clamp01(Number(parsed.score ?? 0)),
+      summary: optStr(parsed.summary),
+      sentiment: optStr(parsed.sentiment),
+      nextAction: optStr(parsed.nextAction),
     };
   }
+}
+
+function optStr(v: unknown): string | null {
+  if (v == null) return null;
+  const s = String(v).trim();
+  return s ? s.slice(0, 800) : null;
 }
 
 function clamp01(n: number): number {
@@ -77,13 +90,11 @@ function clamp01(n: number): number {
   return Math.max(0, Math.min(1, n));
 }
 
-function safeJson(
-  text: string,
-): { needsFollowUp?: unknown; reason?: unknown; score?: unknown } | null {
+function safeJson(text: string): Record<string, unknown> | null {
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) return null;
   try {
-    return JSON.parse(match[0]);
+    return JSON.parse(match[0]) as Record<string, unknown>;
   } catch {
     return null;
   }

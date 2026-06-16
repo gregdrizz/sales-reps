@@ -72,6 +72,35 @@ export function CallCard({
         </div>
       </div>
 
+      {call.summary && (
+        <p className="mt-2 text-sm">
+          <span className="text-[var(--muted)]">Summary:</span> {call.summary}
+        </p>
+      )}
+
+      {(call.sentiment || call.next_action) && (
+        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
+          {call.sentiment && (
+            <span
+              className={`rounded-full border px-2 py-0.5 capitalize ${
+                call.sentiment === "positive"
+                  ? "border-green-500/30 bg-green-500/15 text-green-400"
+                  : call.sentiment === "negative"
+                    ? "border-red-500/30 bg-red-500/15 text-red-400"
+                    : "border-slate-500/30 bg-slate-500/15 text-slate-300"
+              }`}
+            >
+              {call.sentiment}
+            </span>
+          )}
+          {call.next_action && (
+            <span>
+              <span className="text-[var(--foreground)]">Next:</span> {call.next_action}
+            </span>
+          )}
+        </div>
+      )}
+
       {call.follow_up_reason && (
         <p className="mt-2 text-sm text-[var(--muted)]">
           <span className="text-[var(--foreground)]">Why:</span> {call.follow_up_reason}

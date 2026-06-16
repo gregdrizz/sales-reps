@@ -1,4 +1,5 @@
 import "server-only";
+import { sql } from "kysely";
 import { db } from "@/server/db/client";
 
 export async function listScripts(userId: string) {
@@ -70,6 +71,9 @@ export async function getCampaignWithCalls(userId: string, id: string) {
       "calls.needs_follow_up as needs_follow_up",
       "calls.follow_up_reason as follow_up_reason",
       "calls.follow_up_score as follow_up_score",
+      "calls.summary as summary",
+      "calls.sentiment as sentiment",
+      "calls.next_action as next_action",
       "calls.recording_available as recording_available",
       "calls.error as error",
       "calls.created_at as created_at",
@@ -105,6 +109,9 @@ export async function listCalls(userId: string, opts: { followUp?: boolean } = {
       "calls.needs_follow_up as needs_follow_up",
       "calls.follow_up_reason as follow_up_reason",
       "calls.follow_up_score as follow_up_score",
+      "calls.summary as summary",
+      "calls.sentiment as sentiment",
+      "calls.next_action as next_action",
       "calls.recording_available as recording_available",
       "calls.error as error",
       "calls.created_at as created_at",
@@ -141,6 +148,91 @@ export async function listTasks(userId: string, status?: "open" | "done") {
     .limit(500);
   if (status) q = q.where("follow_up_tasks.status", "=", status);
   return q.execute();
+}
+
+const TERMINAL_STATUSES = ["completed", "busy", "no-answer", "failed", "canceled"];
+
+export async function analytics(userId: string) {
+  // Status breakdown.
+  const statusRows = await db
+    .selectFrom("calls")
+    .select(({ fn }) => ["status", fn.countAll<string>().as("n")])
+    .where("user_id", "=", userId)
+    .groupBy("status")
+    .execute();
+
+  const byStatus: Record<string, number> = {};
+  for (const r of statusRows) byStatus[r.status] = Number(r.n);
+  const total = Object.values(byStatus).reduce((a, b) => a + b, 0);
+  const terminal = TERMINAL_STATUSES.reduce((a, s) => a + (byStatus[s] ?? 0), 0);
+  const completed = byStatus["completed"] ?? 0;
+  const answerRate = terminal > 0 ? completed / terminal : 0;
+
+  // Average duration of connected calls.
+  const durationRow = await db
+    .selectFrom("calls")
+    .select(({ fn }) => fn.avg<number | null>("duration_seconds").as("avg"))
+    .where("user_id", "=", userId)
+    .where("status", "=", "completed")
+    .executeTakeFirst();
+  const avgDuration = durationRow?.avg ? Math.round(Number(durationRow.avg)) : 0;
+
+  // Follow-up rate among completed calls.
+  const followUps = await db
+    .selectFrom("calls")
+    .select(({ fn }) => fn.countAll<string>().as("n"))
+    .where("user_id", "=", userId)
+    .where("needs_follow_up", "=", true)
+    .executeTakeFirst();
+  const followUpCount = Number(followUps?.n ?? 0);
+  const followUpRate = completed > 0 ? followUpCount / completed : 0;
+
+  // Per-script performance.
+  const perScript = await db
+    .selectFrom("calls")
+    .innerJoin("campaigns", "campaigns.id", "calls.campaign_id")
+    .innerJoin("scripts", "scripts.id", "campaigns.script_id")
+    .select(({ fn }) => [
+      "scripts.id as id",
+      "scripts.name as name",
+      fn.countAll<string>().as("total"),
+      fn.count<string>("calls.id").filterWhere("calls.status", "=", "completed").as("completed"),
+      fn.count<string>("calls.id").filterWhere("calls.needs_follow_up", "=", true).as("follow_ups"),
+    ])
+    .where("calls.user_id", "=", userId)
+    .groupBy(["scripts.id", "scripts.name"])
+    .orderBy("total", "desc")
+    .execute();
+
+  // Calls per day (last 14 days).
+  const perDayRows = await db
+    .selectFrom("calls")
+    .select(({ fn }) => [
+      sql<string>`to_char(date_trunc('day', created_at), 'YYYY-MM-DD')`.as("day"),
+      fn.countAll<string>().as("n"),
+    ])
+    .where("user_id", "=", userId)
+    .where("created_at", ">=", sql<Date>`now() - interval '14 days'`)
+    .groupBy(sql`date_trunc('day', created_at)`)
+    .orderBy("day", "asc")
+    .execute();
+
+  return {
+    total,
+    byStatus,
+    answerRate,
+    avgDuration,
+    followUpCount,
+    followUpRate,
+    perScript: perScript.map((p) => ({
+      id: p.id,
+      name: p.name,
+      total: Number(p.total),
+      completed: Number(p.completed),
+      followUps: Number(p.follow_ups),
+    })),
+    perDay: perDayRows.map((r) => ({ day: r.day, count: Number(r.n) })),
+  };
 }
 
 export async function dashboardStats(userId: string) {

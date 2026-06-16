@@ -8,6 +8,9 @@ export interface SerializedCall {
   needs_follow_up: boolean | null;
   follow_up_reason: string | null;
   follow_up_score: number | null;
+  summary: string | null;
+  sentiment: string | null;
+  next_action: string | null;
   recording_available: boolean;
   error: string | null;
   created_at: string;

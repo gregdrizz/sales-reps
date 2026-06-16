@@ -53,7 +53,21 @@ Open http://localhost:3000 and sign in with the seeded admin credentials.
 4. The **worker** places each call through Dial, polls it to completion, stores
    the transcript, and runs the **follow-up analyzer**.
 5. **Calls** view shows transcripts and follow-up flags; filter to just the ones
-   that need a follow-up.
+   that need a follow-up. Place a **Quick call** (ad-hoc number + script or inline
+   instruction), **Call again**, or **Text** any number right from the list.
+
+### More capabilities
+
+- **Auto-redial & scheduling** (campaign → "Show scheduling & retries"): retry
+  busy/no-answer/failed up to N attempts with a delay, start at a future time,
+  and restrict dialing to working hours.
+- **SMS & follow-up queue**: send texts, auto-text contacts flagged for
+  follow-up (`{{name}}` template), and work a **Follow-ups** task list that
+  auto-fills from flagged calls.
+- **AI insights & analytics**: with an LLM analyzer enabled, each call gets a
+  summary, sentiment, and suggested next action; the **Analytics** page shows
+  answer rate, avg duration, follow-up rate, calls/day, and per-script
+  performance.
 
 ### Follow-up analyzer
 

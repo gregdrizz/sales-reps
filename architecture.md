@@ -89,6 +89,26 @@ All application rows are scoped by `user_id` (the signed-in rep).
 
 ## Decision log
 
+- **2026-06-17 — Quick/manual calls + redial.** Calls can exist without a
+  campaign: the instruction is snapshotted onto the call row
+  (`instruction_override`), so a one-off "quick call" and "call again" reuse the
+  same processor pipeline. `parent_call_id` records redial lineage.
+- **2026-06-17 — Auto-redial + scheduling.** Retry config lives on the campaign
+  and is copied onto each call (`attempt`/`max_attempts`/`retry_delay_seconds`),
+  so retries are self-contained. A Redis ZSET (`salesreps:delayed`) holds delayed
+  jobs; a 10s scheduler tick in the worker promotes due jobs and starts due
+  scheduled campaigns (claimed by nulling `scheduled_at`). Working-hours windows
+  defer a campaign job to the next window.
+- **2026-06-17 — SMS + follow-up tasks.** `sendSms` records every message;
+  `handleFollowUp` (shared by processor + reconcile) creates one follow-up task
+  per flagged call (unique index on `call_id`) and optionally auto-texts a
+  `{{name}}` template when the campaign opts in.
+- **2026-06-17 — AI insights + analytics.** LLM analyzers (Groq/Claude) also
+  return `summary`/`sentiment`/`nextAction`, stored on the call; the heuristic
+  leaves them null. An `analytics()` aggregate powers the Analytics page
+  (answer rate, avg duration, follow-up rate, calls/day, per-script).
+
+
 - **2026-06-16 — Project bootstrapped.** Next.js 15 App Router + TS, Tailwind v4,
   Kysely/pg, ioredis, better-auth. Postgres + Redis pinned in docker-compose;
   the app runs on the host.
