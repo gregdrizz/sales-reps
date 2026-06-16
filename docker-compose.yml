@@ -11,7 +11,7 @@ services:
       POSTGRES_PASSWORD: sales
       POSTGRES_DB: sales_reps
     ports:
-      - "5432:5432"
+      - "5544:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -26,7 +26,7 @@ services:
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     ports:
-      - "6379:6379"
+      - "6399:6379"
     volumes:
       - redis_data:/data
     healthcheck:
