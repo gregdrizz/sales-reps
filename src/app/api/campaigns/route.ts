@@ -48,6 +48,11 @@ export async function POST(req: Request) {
       name: parsed.data.name,
       mode: parsed.data.mode,
       contactIds: parsed.data.contactIds,
+      maxAttempts: parsed.data.maxAttempts,
+      retryDelaySeconds: parsed.data.retryDelaySeconds,
+      scheduledAt: parsed.data.scheduledAt ? new Date(parsed.data.scheduledAt) : null,
+      workStartHour: parsed.data.workStartHour ?? null,
+      workEndHour: parsed.data.workEndHour ?? null,
     });
     return json({ campaign, callCount }, { status: 201 });
   } catch (err) {

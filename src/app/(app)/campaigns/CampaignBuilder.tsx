@@ -25,6 +25,12 @@ export function CampaignBuilder({
   const [scriptId, setScriptId] = useState(scripts[0]?.id ?? "");
   const [mode, setMode] = useState<"sequential" | "parallel">("sequential");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [maxAttempts, setMaxAttempts] = useState(1);
+  const [retryDelayMin, setRetryDelayMin] = useState(5);
+  const [scheduledAt, setScheduledAt] = useState("");
+  const [workStart, setWorkStart] = useState("");
+  const [workEnd, setWorkEnd] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,6 +67,11 @@ export function CampaignBuilder({
         scriptId,
         mode,
         contactIds: [...selected],
+        maxAttempts,
+        retryDelaySeconds: retryDelayMin * 60,
+        scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : null,
+        workStartHour: workStart === "" ? null : Number(workStart),
+        workEndHour: workEnd === "" ? null : Number(workEnd),
       }),
     });
     setBusy(false);
@@ -167,6 +178,74 @@ export function CampaignBuilder({
             </label>
           ))}
         </div>
+      </div>
+
+      <div className="mt-4">
+        <button
+          type="button"
+          onClick={() => setShowAdvanced((v) => !v)}
+          className="text-sm text-[var(--accent)] hover:underline"
+        >
+          {showAdvanced ? "Hide" : "Show"} scheduling & retries
+        </button>
+        {showAdvanced && (
+          <div className="mt-3 grid gap-4 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-4 sm:grid-cols-2">
+            <div>
+              <label className="block text-sm text-[var(--muted)]">Start at (optional)</label>
+              <input
+                type="datetime-local"
+                className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 outline-none focus:border-[var(--accent)]"
+                value={scheduledAt}
+                onChange={(e) => setScheduledAt(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-[var(--muted)]">Max attempts per number</label>
+              <input
+                type="number"
+                min={1}
+                max={10}
+                className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 outline-none focus:border-[var(--accent)]"
+                value={maxAttempts}
+                onChange={(e) => setMaxAttempts(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-[var(--muted)]">Retry delay (minutes)</label>
+              <input
+                type="number"
+                min={1}
+                className="mt-1 w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 outline-none focus:border-[var(--accent)]"
+                value={retryDelayMin}
+                onChange={(e) => setRetryDelayMin(Number(e.target.value))}
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-[var(--muted)]">Working hours (24h)</label>
+              <div className="mt-1 flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  max={23}
+                  placeholder="9"
+                  className="w-20 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 outline-none focus:border-[var(--accent)]"
+                  value={workStart}
+                  onChange={(e) => setWorkStart(e.target.value)}
+                />
+                <span className="text-[var(--muted)]">to</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={23}
+                  placeholder="18"
+                  className="w-20 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 outline-none focus:border-[var(--accent)]"
+                  value={workEnd}
+                  onChange={(e) => setWorkEnd(e.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {error && <p className="mt-3 text-sm text-[var(--danger)]">{error}</p>}

@@ -68,6 +68,11 @@ export interface CampaignTable {
   name: string;
   mode: CampaignMode;
   status: ColumnType<CampaignStatus, CampaignStatus | undefined, CampaignStatus>;
+  scheduled_at: NullableTimestamp;
+  max_attempts: ColumnType<number, number | undefined, number>;
+  retry_delay_seconds: ColumnType<number, number | undefined, number>;
+  work_start_hour: number | null;
+  work_end_hour: number | null;
   created_at: DefaultTimestamp;
 }
 
@@ -91,6 +96,7 @@ export interface CallTable {
   voice_gender: VoiceGender | null;
   attempt: ColumnType<number, number | undefined, number>;
   max_attempts: ColumnType<number, number | undefined, number>;
+  retry_delay_seconds: ColumnType<number, number | undefined, number>;
   parent_call_id: string | null;
   created_at: DefaultTimestamp;
   updated_at: DefaultTimestamp;

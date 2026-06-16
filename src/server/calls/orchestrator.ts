@@ -1,7 +1,8 @@
 import { db } from "@/server/db/client";
 import type { Call, Campaign, CampaignMode, VoiceGender } from "@/server/db/types";
-import { enqueueJob } from "./queue";
+import { enqueueDelayed, enqueueJob } from "./queue";
 import { processCall } from "./processor";
+import { msUntilWorkingHours } from "./schedule";
 
 const PARALLEL_CONCURRENCY = 5;
 
@@ -114,6 +115,11 @@ export interface CreateCampaignInput {
   name: string;
   mode: CampaignMode;
   contactIds: string[];
+  maxAttempts?: number;
+  retryDelaySeconds?: number;
+  scheduledAt?: Date | null;
+  workStartHour?: number | null;
+  workEndHour?: number | null;
 }
 
 /**
@@ -139,6 +145,10 @@ export async function createCampaign(
     .execute();
   if (contacts.length === 0) throw new Error("No valid contacts selected");
 
+  const maxAttempts = Math.max(1, input.maxAttempts ?? 1);
+  const retryDelaySeconds = Math.max(0, input.retryDelaySeconds ?? 300);
+  const future = input.scheduledAt && input.scheduledAt.getTime() > Date.now();
+
   const campaign = await db.transaction().execute(async (trx) => {
     const created = await trx
       .insertInto("campaigns")
@@ -148,6 +158,11 @@ export async function createCampaign(
         name: input.name,
         mode: input.mode,
         status: "pending",
+        scheduled_at: future ? input.scheduledAt : null,
+        max_attempts: maxAttempts,
+        retry_delay_seconds: retryDelaySeconds,
+        work_start_hour: input.workStartHour ?? null,
+        work_end_hour: input.workEndHour ?? null,
       })
       .returningAll()
       .executeTakeFirstOrThrow();
@@ -161,6 +176,8 @@ export async function createCampaign(
           contact_id: c.id,
           to_number: c.phone,
           status: "queued" as const,
+          max_attempts: maxAttempts,
+          retry_delay_seconds: retryDelaySeconds,
         })),
       )
       .execute();
@@ -168,8 +185,28 @@ export async function createCampaign(
     return created;
   });
 
-  await enqueueJob({ type: "campaign", campaignId: campaign.id });
+  // Future-scheduled campaigns are picked up by the worker's scheduler tick.
+  if (!future) await enqueueJob({ type: "campaign", campaignId: campaign.id });
   return { campaign, callCount: contacts.length };
+}
+
+/**
+ * Claim campaigns whose scheduled time has arrived and enqueue them. Nulling
+ * `scheduled_at` in the same UPDATE acts as the claim so the scheduler tick
+ * never enqueues the same campaign twice. Returns how many were started.
+ */
+export async function claimDueScheduledCampaigns(): Promise<number> {
+  const due = await db
+    .updateTable("campaigns")
+    .set({ scheduled_at: null })
+    .where("status", "=", "pending")
+    .where("scheduled_at", "is not", null)
+    .where("scheduled_at", "<=", new Date())
+    .returning("id")
+    .execute();
+
+  for (const c of due) await enqueueJob({ type: "campaign", campaignId: c.id });
+  return due.length;
 }
 
 async function runPool<T>(
@@ -194,11 +231,22 @@ async function runPool<T>(
 export async function processCampaign(campaignId: string): Promise<void> {
   const campaign = await db
     .selectFrom("campaigns")
-    .select(["id", "mode"])
+    .select(["id", "mode", "work_start_hour", "work_end_hour"])
     .where("id", "=", campaignId)
     .executeTakeFirst();
   if (!campaign) {
     console.error(`[orchestrator] campaign ${campaignId} not found`);
+    return;
+  }
+
+  // Respect the working-hours window: if we're outside it, defer the whole
+  // campaign job to the next window start (status stays pending).
+  const wait = msUntilWorkingHours(campaign.work_start_hour, campaign.work_end_hour);
+  if (wait > 0) {
+    console.log(
+      `[orchestrator] campaign ${campaignId} outside working hours → deferring ${Math.round(wait / 60000)}m`,
+    );
+    await enqueueDelayed({ type: "campaign", campaignId }, wait);
     return;
   }
 

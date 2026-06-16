@@ -2,6 +2,7 @@ import { db } from "@/server/db/client";
 import type { CallStatus } from "@/server/db/types";
 import { DialApiError, getDialClient, isTerminalDialStatus } from "@/server/dial/client";
 import { getFollowUpAnalyzer } from "@/server/followup";
+import { enqueueDelayed } from "./queue";
 import { isTerminal, mapDialStatus } from "./status";
 
 const POLL_INTERVAL_MS = 3_000;
@@ -79,6 +80,57 @@ async function setStatus(callId: string, status: CallStatus): Promise<void> {
 }
 
 /**
+ * If a call couldn't connect (busy / no-answer / failed) and it has attempts
+ * left, clone it as a fresh queued call (attempt+1) and schedule it after the
+ * configured retry delay. Linked back via parent_call_id.
+ */
+async function scheduleRetryIfNeeded(callId: string, status: CallStatus): Promise<void> {
+  if (status !== "busy" && status !== "no-answer" && status !== "failed") return;
+
+  const call = await db
+    .selectFrom("calls")
+    .select([
+      "user_id",
+      "campaign_id",
+      "contact_id",
+      "to_number",
+      "instruction_override",
+      "language",
+      "voice_gender",
+      "attempt",
+      "max_attempts",
+      "retry_delay_seconds",
+    ])
+    .where("id", "=", callId)
+    .executeTakeFirst();
+  if (!call || call.attempt >= call.max_attempts) return;
+
+  const retry = await db
+    .insertInto("calls")
+    .values({
+      user_id: call.user_id,
+      campaign_id: call.campaign_id,
+      contact_id: call.contact_id,
+      to_number: call.to_number,
+      status: "queued",
+      instruction_override: call.instruction_override,
+      language: call.language,
+      voice_gender: call.voice_gender,
+      attempt: call.attempt + 1,
+      max_attempts: call.max_attempts,
+      retry_delay_seconds: call.retry_delay_seconds,
+      parent_call_id: callId,
+    })
+    .returning("id")
+    .executeTakeFirstOrThrow();
+
+  await enqueueDelayed({ type: "call", callId: retry.id }, call.retry_delay_seconds * 1000);
+  console.log(
+    `[processor] scheduled retry ${call.attempt + 1}/${call.max_attempts} for ${callId} in ${call.retry_delay_seconds}s`,
+  );
+}
+
+/**
  * Places one call through Dial, polls it to completion, stores the transcript,
  * and runs the follow-up analyzer. Idempotent dial via the call row id, so a
  * retried job never double-dials. Errors are recorded on the row, not thrown.
@@ -151,6 +203,8 @@ export async function processCall(callId: string): Promise<void> {
       })
       .where("id", "=", callId)
       .execute();
+
+    await scheduleRetryIfNeeded(callId, finalStatus);
   } catch (err) {
     const message =
       err instanceof DialApiError
@@ -164,5 +218,6 @@ export async function processCall(callId: string): Promise<void> {
       .set({ status: "failed", error: message, ended_at: new Date(), updated_at: new Date() })
       .where("id", "=", callId)
       .execute();
+    await scheduleRetryIfNeeded(callId, "failed");
   }
 }

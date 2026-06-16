@@ -1,12 +1,13 @@
 import { db } from "@/server/db/client";
 import { createRedisConnection } from "@/server/redis";
-import { processCampaign } from "@/server/calls/orchestrator";
+import { claimDueScheduledCampaigns, processCampaign } from "@/server/calls/orchestrator";
 import { processCall } from "@/server/calls/processor";
-import { JOBS_KEY, type Job } from "@/server/calls/queue";
+import { JOBS_KEY, promoteDueDelayed, type Job } from "@/server/calls/queue";
 
 // Standalone background worker. Drains the Redis job queue and runs each job to
 // completion. Run with `npm run worker` alongside `npm run dev`.
 
+const SCHEDULER_INTERVAL_MS = 10_000;
 let running = true;
 
 async function handle(job: Job): Promise<void> {
@@ -17,9 +18,25 @@ async function handle(job: Job): Promise<void> {
   }
 }
 
+/** Periodic tick: promote due delayed jobs and start due scheduled campaigns. */
+async function schedulerTick() {
+  try {
+    const promoted = await promoteDueDelayed();
+    const started = await claimDueScheduledCampaigns();
+    if (promoted || started) {
+      console.log(`[scheduler] promoted ${promoted} delayed, started ${started} scheduled`);
+    }
+  } catch (err) {
+    console.error("[scheduler] tick error:", err);
+  }
+}
+
 async function main() {
   const conn = createRedisConnection();
   console.log(`[worker] listening on "${JOBS_KEY}" …`);
+
+  const scheduler = setInterval(schedulerTick, SCHEDULER_INTERVAL_MS);
+  void schedulerTick();
 
   while (running) {
     try {
@@ -42,6 +59,7 @@ async function main() {
     }
   }
 
+  clearInterval(scheduler);
   await conn.quit();
   await db.destroy();
 }

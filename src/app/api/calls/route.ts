@@ -62,7 +62,7 @@ export async function POST(req: Request) {
 
   // Resolve the destination number from a contact if one was given.
   let toNumber = parsed.data.toNumber ?? null;
-  let contactId = parsed.data.contactId ?? null;
+  const contactId = parsed.data.contactId ?? null;
   if (contactId) {
     const contact = await db
       .selectFrom("contacts")

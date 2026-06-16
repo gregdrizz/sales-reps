@@ -27,11 +27,18 @@ export const contactBulkSchema = z.object({
   contacts: z.array(contactCreateSchema).min(1).max(1000),
 });
 
+const hour = z.number().int().min(0).max(23);
+
 export const campaignCreateSchema = z.object({
   name: z.string().trim().min(1).max(120),
   scriptId: z.string().uuid(),
   mode: z.enum(["sequential", "parallel"]),
   contactIds: z.array(z.string().uuid()).min(1).max(1000),
+  maxAttempts: z.number().int().min(1).max(10).optional(),
+  retryDelaySeconds: z.number().int().min(30).max(86400).optional(),
+  scheduledAt: z.string().datetime().optional().nullable(),
+  workStartHour: hour.optional().nullable(),
+  workEndHour: hour.optional().nullable(),
 });
 
 export const adhocCallSchema = z
