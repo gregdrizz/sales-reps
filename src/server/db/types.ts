@@ -1,7 +1,15 @@
 import type { ColumnType, Generated, Insertable, Selectable, Updateable } from "kysely";
 
-/** ISO timestamp columns are read as `Date` and written as `Date | string`. */
+/** Timestamp read as `Date`, written as `Date | string`. */
 type Timestamp = ColumnType<Date, Date | string, Date | string>;
+/** Timestamp with a DB default: optional on insert, settable on update. */
+type DefaultTimestamp = ColumnType<Date, Date | string | undefined, Date | string>;
+/** Nullable timestamp (no default). */
+type NullableTimestamp = ColumnType<
+  Date | null,
+  Date | string | null | undefined,
+  Date | string | null
+>;
 
 export type CallStatus =
   | "queued"
@@ -40,8 +48,8 @@ export interface ScriptTable {
   instruction: string;
   language: string | null;
   voice_gender: ColumnType<VoiceGender, VoiceGender | undefined, VoiceGender>;
-  created_at: Generated<Timestamp>;
-  updated_at: Generated<Timestamp>;
+  created_at: DefaultTimestamp;
+  updated_at: DefaultTimestamp;
 }
 
 export interface ContactTable {
@@ -50,7 +58,7 @@ export interface ContactTable {
   name: string;
   phone: string;
   notes: string | null;
-  created_at: Generated<Timestamp>;
+  created_at: DefaultTimestamp;
 }
 
 export interface CampaignTable {
@@ -60,7 +68,7 @@ export interface CampaignTable {
   name: string;
   mode: CampaignMode;
   status: ColumnType<CampaignStatus, CampaignStatus | undefined, CampaignStatus>;
-  created_at: Generated<Timestamp>;
+  created_at: DefaultTimestamp;
 }
 
 export interface CallTable {
@@ -78,9 +86,9 @@ export interface CallTable {
   follow_up_score: number | null;
   recording_available: ColumnType<boolean, boolean | undefined, boolean>;
   error: string | null;
-  created_at: Generated<Timestamp>;
-  updated_at: Generated<Timestamp>;
-  ended_at: Timestamp | null;
+  created_at: DefaultTimestamp;
+  updated_at: DefaultTimestamp;
+  ended_at: NullableTimestamp;
 }
 
 export interface Database {

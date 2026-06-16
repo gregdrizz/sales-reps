@@ -96,6 +96,15 @@ All application rows are scoped by `user_id` (the signed-in rep).
   worker** rather than inline in request handlers, so campaigns survive request
   timeouts and can fan out.
 - **2026-06-16 — Follow-up detection is a pluggable analyzer.** Default is a
-  transcript heuristic (no external dependency); an optional Claude-backed
-  analyzer can be enabled via env. Keeps the platform self-contained while
-  allowing higher-quality classification when an API key is present.
+  transcript heuristic (no external dependency, English + Hebrew keyword
+  signals). Optional LLM analyzers can be enabled via env: **Groq**
+  (OpenAI-compatible, cheap + fast — the recommended AI option) or Claude. An AI
+  analyzer activates only when both selected and its API key is present;
+  otherwise the heuristic runs, so the platform always works out of the box.
+- **2026-06-16 — Dial integration.** A `DialClient` wraps `POST /api/v1/calls`,
+  `GET /api/v1/calls/:id`, and `POST /api/v1/messages`. Calls are placed with the
+  call row id as the `Idempotency-Key` so a retried job never double-dials. The
+  processor places a call, polls to a terminal status (≤12 min), re-polls a few
+  times for the transcript (which can finalize just after the call ends), then
+  runs the analyzer. Campaign `mode` controls fan-out: `sequential` awaits each
+  call in order; `parallel` runs a capped pool (5 concurrent).

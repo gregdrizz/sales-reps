@@ -30,7 +30,9 @@ const schema = z.object({
   DIAL_FROM_NUMBER_ID: z.string().optional().default(""),
   DIAL_WEBHOOK_SECRET: z.string().optional().default(""),
 
-  FOLLOWUP_ANALYZER: z.enum(["heuristic", "claude"]).default("heuristic"),
+  FOLLOWUP_ANALYZER: z.enum(["heuristic", "groq", "claude"]).default("heuristic"),
+  GROQ_API_KEY: z.string().optional().default(""),
+  GROQ_MODEL: z.string().default("llama-3.3-70b-versatile"),
   ANTHROPIC_API_KEY: z.string().optional().default(""),
   CLAUDE_MODEL: z.string().default("claude-haiku-4-5"),
 });
