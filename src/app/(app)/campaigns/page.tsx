@@ -2,58 +2,35 @@ import Link from "next/link";
 import { StatusBadge } from "@/components/StatusBadge";
 import { formatDate } from "@/lib/format";
 import { requireUser } from "@/server/auth/session";
-import { dashboardStats, listCampaigns } from "@/server/queries";
+import { listCampaigns, listContacts, listScripts } from "@/server/queries";
+import { CampaignBuilder } from "./CampaignBuilder";
 
 export const dynamic = "force-dynamic";
 
-const STAT_CARDS: { key: keyof Awaited<ReturnType<typeof dashboardStats>>; label: string; href: string }[] = [
-  { key: "scripts", label: "Scripts", href: "/scripts" },
-  { key: "contacts", label: "Contacts", href: "/contacts" },
-  { key: "campaigns", label: "Campaigns", href: "/campaigns" },
-  { key: "calls", label: "Calls", href: "/calls" },
-  { key: "followUps", label: "Need follow-up", href: "/calls?followUp=true" },
-];
-
-export default async function DashboardPage() {
+export default async function CampaignsPage() {
   const user = await requireUser();
-  const [stats, campaigns] = await Promise.all([
-    dashboardStats(user.id),
+  const [campaigns, scripts, contacts] = await Promise.all([
     listCampaigns(user.id),
+    listScripts(user.id),
+    listContacts(user.id),
   ]);
 
   return (
     <main className="p-8">
-      <h1 className="text-2xl font-semibold">Dashboard</h1>
-      <p className="mt-1 text-sm text-[var(--muted)]">Welcome back, {user.name}.</p>
+      <h1 className="text-2xl font-semibold">Campaigns</h1>
+      <p className="mt-1 text-sm text-[var(--muted)]">
+        Pick a script and contacts, then call them one-by-one or all at once.
+      </p>
 
-      <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-        {STAT_CARDS.map((c) => (
-          <Link
-            key={c.key}
-            href={c.href}
-            className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 transition hover:border-[var(--accent)]"
-          >
-            <div className="text-3xl font-semibold">{stats[c.key]}</div>
-            <div className="mt-1 text-sm text-[var(--muted)]">{c.label}</div>
-          </Link>
-        ))}
-      </div>
+      <CampaignBuilder
+        scripts={scripts.map((s) => ({ id: s.id, name: s.name }))}
+        contacts={contacts.map((c) => ({ id: c.id, name: c.name, phone: c.phone }))}
+      />
 
-      <div className="mt-8 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Recent campaigns</h2>
-        <Link
-          href="/campaigns"
-          className="rounded-lg bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-white hover:bg-[var(--accent-hover)]"
-        >
-          New campaign
-        </Link>
-      </div>
-
+      <h2 className="mt-10 text-lg font-semibold">All campaigns</h2>
       <div className="mt-4 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface)]">
         {campaigns.length === 0 ? (
-          <p className="p-6 text-sm text-[var(--muted)]">
-            No campaigns yet. Create a script, add contacts, then launch a campaign.
-          </p>
+          <p className="p-6 text-sm text-[var(--muted)]">No campaigns yet.</p>
         ) : (
           <table className="w-full text-sm">
             <thead className="text-left text-[var(--muted)]">
@@ -67,7 +44,7 @@ export default async function DashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {campaigns.slice(0, 8).map((c) => (
+              {campaigns.map((c) => (
                 <tr key={c.id} className="border-b border-[var(--border)] last:border-0">
                   <td className="px-4 py-3">
                     <Link className="hover:text-[var(--accent)]" href={`/campaigns/${c.id}`}>

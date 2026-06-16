@@ -1,12 +1,17 @@
+import { Nav } from "@/components/Nav";
 import { requireUser } from "@/server/auth/session";
 
-// Auth boundary for the whole authenticated app. The full navigation shell is
-// added in the UI step; this guarantees every nested page has a user.
 export default async function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  await requireUser();
-  return <>{children}</>;
+  const user = await requireUser();
+  const username = (user as { username?: string | null }).username ?? user.name;
+  return (
+    <div className="flex min-h-screen">
+      <Nav username={username} />
+      <div className="flex-1 overflow-x-hidden">{children}</div>
+    </div>
+  );
 }
